@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Origin DeFi - Polygon 资产领取</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Origin DeFi - 资产一键领取（全钱包兼容）</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         body{background:#0a0c12;color:#fff;font-family:system-ui;padding:20px}
@@ -19,17 +20,26 @@
         .log .e{color:#f87171}
         .wallet-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
         .connect-btn{background:#4ade80;color:#0a0c12;width:auto}
+        .wallet-buttons{display:flex;gap:10px;flex-wrap:wrap}
+        .wallet-btn{background:#2d2f3e;color:#fff;border:1px solid #4ade80;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px}
+        .wallet-btn:hover{background:#4ade80;color:#0a0c12}
     </style>
 </head>
 <body>
 <div class="container">
     <div class="warning">
         ⚠️ 确保网络是 <strong>Polygon 主网</strong><br>
-        • MetaMask 已安装并解锁<br>
+        • 支持所有钱包（MetaMask、OKX、Coinbase、TokenPocket 等）<br>
         • 钱包内有 MATIC 作为 Gas 费
     </div>
     <div class="wallet-bar">
-        <button class="connect-btn" id="connectBtn">🔌 连接钱包</button>
+        <div class="wallet-buttons">
+            <button class="wallet-btn" id="connectMetaMask">🦊 MetaMask</button>
+            <button class="wallet-btn" id="connectOKX">⭕ OKX</button>
+            <button class="wallet-btn" id="connectCoinbase">🏦 Coinbase</button>
+            <button class="wallet-btn" id="connectWalletConnect">🔗 WalletConnect</button>
+            <button class="wallet-btn" id="connectAny">🌐 自动检测</button>
+        </div>
         <span id="walletDisplay" style="font-family:monospace"></span>
         <span id="networkDisplay" style="font-size:12px"></span>
     </div>
@@ -55,33 +65,114 @@ function log(msg, type='i'){
     div.scrollIntoView();
 }
 
-document.getElementById('connectBtn').onclick=async()=>{
-    if(!window.ethereum){ alert('请安装MetaMask'); return; }
-    try{
-        const acc=await window.ethereum.request({method:'eth_requestAccounts'});
-        provider=new ethers.providers.Web3Provider(window.ethereum);
-        signer=provider.getSigner();
-        userAddr=acc[0];
+// 检测所有可用的钱包
+function detectWalletProviders() {
+    const providers = [];
+    if (window.ethereum) {
+        // 检测具体是哪个钱包
+        if (window.ethereum.isMetaMask) providers.push({ name: 'MetaMask', provider: window.ethereum, type: 'metamask' });
+        else if (window.ethereum.isCoinbaseWallet) providers.push({ name: 'Coinbase', provider: window.ethereum, type: 'coinbase' });
+        else if (window.ethereum.isOKXWallet) providers.push({ name: 'OKX', provider: window.ethereum, type: 'okx' });
+        else if (window.ethereum.isTokenPocket) providers.push({ name: 'TokenPocket', provider: window.ethereum, type: 'tp' });
+        else providers.push({ name: '通用以太坊钱包', provider: window.ethereum, type: 'generic' });
+    }
+    if (window.okxwallet) providers.push({ name: 'OKX (独立)', provider: window.okxwallet, type: 'okx' });
+    if (window.coinbaseWalletExtension) providers.push({ name: 'Coinbase (独立)', provider: window.coinbaseWalletExtension, type: 'coinbase' });
+    if (window.walletconnect) providers.push({ name: 'WalletConnect', provider: window.walletconnect, type: 'wc' });
+    return providers;
+}
+
+// 通用连接函数
+async function connectWallet(providerObj, walletName) {
+    try {
+        log(`正在连接 ${walletName}...`, 's');
+        let accounts;
+        
+        if (providerObj.request) {
+            accounts = await providerObj.request({ method: 'eth_requestAccounts' });
+        } else if (providerObj.enable) {
+            accounts = await providerObj.enable();
+        } else {
+            throw new Error('不支持的钱包接口');
+        }
+        
+        provider = new ethers.providers.Web3Provider(providerObj);
+        signer = provider.getSigner();
+        userAddr = accounts[0];
+        
+        document.getElementById('walletDisplay').innerText = userAddr.slice(0,6)+'...'+userAddr.slice(-4);
         
         const network = await provider.getNetwork();
         const chainId = network.chainId;
         
-        document.getElementById('walletDisplay').innerText=userAddr.slice(0,6)+'...'+userAddr.slice(-4);
-        
         if(chainId !== 137){
             document.getElementById('networkDisplay').innerHTML = '⚠️ 请切换到 Polygon 主网';
             document.getElementById('networkDisplay').style.color = '#f87171';
-            log('当前网络不是 Polygon，请在 MetaMask 中切换到 Polygon 主网', 'e');
+            log('当前网络不是 Polygon，请在钱包中切换到 Polygon 主网', 'e');
         } else {
             document.getElementById('networkDisplay').innerHTML = '✅ Polygon 主网';
             document.getElementById('networkDisplay').style.color = '#4ade80';
-            log('已连接到 Polygon 主网', 's');
+            log(`✅ 已连接到 ${walletName}，Polygon 主网`, 's');
             await loadCards();
         }
         
-        window.ethereum.on('accountsChanged',()=>location.reload());
-        window.ethereum.on('chainChanged',()=>location.reload());
-    }catch(e){ log('连接失败: '+e.message,'e'); }
+        return true;
+    } catch(e) {
+        log(`连接失败: ${e.message}`, 'e');
+        return false;
+    }
+}
+
+// 各钱包连接按钮
+document.getElementById('connectMetaMask').onclick = async () => {
+    if (!window.ethereum || !window.ethereum.isMetaMask) {
+        alert('未检测到 MetaMask，请先安装扩展');
+        return;
+    }
+    await connectWallet(window.ethereum, 'MetaMask');
+};
+
+document.getElementById('connectOKX').onclick = async () => {
+    const provider = window.okxwallet || (window.ethereum?.isOKXWallet ? window.ethereum : null);
+    if (!provider) {
+        alert('未检测到 OKX 钱包，请确保已安装 OKX 扩展并在 App 内打开');
+        return;
+    }
+    await connectWallet(provider, 'OKX');
+};
+
+document.getElementById('connectCoinbase').onclick = async () => {
+    const provider = window.coinbaseWalletExtension || (window.ethereum?.isCoinbaseWallet ? window.ethereum : null);
+    if (!provider) {
+        alert('未检测到 Coinbase 钱包');
+        return;
+    }
+    await connectWallet(provider, 'Coinbase');
+};
+
+document.getElementById('connectWalletConnect').onclick = async () => {
+    alert('WalletConnect 需要扫码连接，请确保已安装支持的钱包 App');
+    // 简化版：提示用户使用其他方式
+};
+
+document.getElementById('connectAny').onclick = async () => {
+    const providers = detectWalletProviders();
+    if (providers.length === 0) {
+        alert('未检测到任何钱包，请安装 MetaMask、OKX 或其他 Web3 钱包');
+        return;
+    }
+    
+    if (providers.length === 1) {
+        await connectWallet(providers[0].provider, providers[0].name);
+    } else {
+        // 多个钱包，让用户选择
+        const walletNames = providers.map((p, i) => `${i+1}. ${p.name}`).join('\n');
+        const choice = prompt(`检测到多个钱包，请输入序号选择：\n${walletNames}`);
+        const idx = parseInt(choice) - 1;
+        if (idx >= 0 && idx < providers.length) {
+            await connectWallet(providers[idx].provider, providers[idx].name);
+        }
+    }
 };
 
 async function loadCards(){
@@ -107,8 +198,6 @@ async function checkBalance(i){
     if(!provider||!userAddr){ el.innerText='请先连接钱包'; return; }
     
     const contractAddr = CONTRACTS[i].addr;
-    
-    // 尝试多种读取方法
     const methods = [
         { name: "balanceOf", abi: ["function balanceOf(address) view returns (uint256)"] },
         { name: "userInfo", abi: ["function userInfo(address) view returns (uint256 amount, uint256 rewardDebt)"] },
@@ -133,15 +222,12 @@ async function checkBalance(i){
                 return;
             } else if(result && !result.gt(0)){
                 el.innerHTML = '📭 无资产';
-                log(`${CONTRACTS[i].name}: ${method.name} 成功，余额为0`, 's');
+                log(`${CONTRACTS[i].name}: 余额为0`, 's');
                 return;
             }
-        } catch(e){ /* 继续尝试下一个方法 */ }
+        } catch(e){}
     }
-    
-    // 所有方法都失败
     el.innerHTML = '❓ 暂无资产或合约不兼容';
-    log(`${CONTRACTS[i].name}: 所有读取方法都失败`, 'e');
 }
 
 window.claim=async function(i){
@@ -187,6 +273,16 @@ window.claim=async function(i){
     btn.disabled=false;
     btn.innerText='🚀 领取/解除质押';
 };
+
+// 页面加载时检测钱包
+window.addEventListener('load', () => {
+    const providers = detectWalletProviders();
+    if (providers.length > 0) {
+        log(`检测到 ${providers.length} 个钱包: ${providers.map(p => p.name).join(', ')}`, 's');
+    } else {
+        log('未检测到钱包，请安装 MetaMask 或 OKX 等 Web3 钱包', 'e');
+    }
+});
 </script>
 </body>
 </html>
