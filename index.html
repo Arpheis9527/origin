@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Origin DeFi - 资产一键领取（全钱包兼容）</title>
+    <title>Origin DeFi - 资产一键领取（修复债券Claim）</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         body{background:#0a0c12;color:#fff;font-family:system-ui;padding:20px}
@@ -23,6 +23,7 @@
         .wallet-buttons{display:flex;gap:10px;flex-wrap:wrap}
         .wallet-btn{background:#2d2f3e;color:#fff;border:1px solid #4ade80;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px}
         .wallet-btn:hover{background:#4ade80;color:#0a0c12}
+        .bond-tip { background: #2d2f3e; border-radius: 8px; padding: 8px; margin-top: 10px; font-size: 12px; color: #fbbf24; text-align: center; }
     </style>
 </head>
 <body>
@@ -30,14 +31,14 @@
     <div class="warning">
         ⚠️ 确保网络是 <strong>Polygon 主网</strong><br>
         • 支持所有钱包（MetaMask、OKX、Coinbase、TokenPocket 等）<br>
-        • 钱包内有 MATIC 作为 Gas 费
+        • 钱包内有 MATIC 作为 Gas 费<br>
+        • <strong>债券池（DAI/LP）已修复为 Claim 方法</strong>
     </div>
     <div class="wallet-bar">
         <div class="wallet-buttons">
             <button class="wallet-btn" id="connectMetaMask">🦊 MetaMask</button>
             <button class="wallet-btn" id="connectOKX">⭕ OKX</button>
             <button class="wallet-btn" id="connectCoinbase">🏦 Coinbase</button>
-            <button class="wallet-btn" id="connectWalletConnect">🔗 WalletConnect</button>
             <button class="wallet-btn" id="connectAny">🌐 自动检测</button>
         </div>
         <span id="walletDisplay" style="font-family:monospace"></span>
@@ -49,10 +50,26 @@
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 <script>
 const CONTRACTS = [
-    { name:"🏦 主质押池 (360/600天)", addr:"0x1964Ca90474b11FFD08af387b110ba6C96251Bfc" },
-    { name:"🔷 A 质押池", addr:"0x6631eE651DA438Db2BE611B5A44dFE2Ca04590C5" },
-    { name:"💰 DAI 债券", addr:"0x59A6693CaA6305b1E4F16176D5228C32E24717E5" },
-    { name:"🔄 LP 债券", addr:"0x2EC37eAb8C1a3EA0eDa2296495bf7BE6c62e2788" }
+    { 
+        name:"🏦 主质押池 (360/600天)", 
+        addr:"0x1964Ca90474b11FFD08af387b110ba6C96251Bfc",
+        type: "staking"
+    },
+    { 
+        name:"🔷 A 质押池", 
+        addr:"0x6631eE651DA438Db2BE611B5A44dFE2Ca04590C5",
+        type: "staking"
+    },
+    { 
+        name:"💰 DAI 债券", 
+        addr:"0x59A6693CaA6305b1E4F16176D5228C32E24717E5",
+        type: "bond"  // 标记为债券
+    },
+    { 
+        name:"🔄 LP 债券", 
+        addr:"0x2EC37eAb8C1a3EA0eDa2296495bf7BE6c62e2788",
+        type: "bond"   // 标记为债券
+    }
 ];
 
 let provider, signer, userAddr;
@@ -69,16 +86,13 @@ function log(msg, type='i'){
 function detectWalletProviders() {
     const providers = [];
     if (window.ethereum) {
-        // 检测具体是哪个钱包
         if (window.ethereum.isMetaMask) providers.push({ name: 'MetaMask', provider: window.ethereum, type: 'metamask' });
         else if (window.ethereum.isCoinbaseWallet) providers.push({ name: 'Coinbase', provider: window.ethereum, type: 'coinbase' });
         else if (window.ethereum.isOKXWallet) providers.push({ name: 'OKX', provider: window.ethereum, type: 'okx' });
-        else if (window.ethereum.isTokenPocket) providers.push({ name: 'TokenPocket', provider: window.ethereum, type: 'tp' });
-        else providers.push({ name: '通用以太坊钱包', provider: window.ethereum, type: 'generic' });
+        else providers.push({ name: '通用钱包', provider: window.ethereum, type: 'generic' });
     }
     if (window.okxwallet) providers.push({ name: 'OKX (独立)', provider: window.okxwallet, type: 'okx' });
     if (window.coinbaseWalletExtension) providers.push({ name: 'Coinbase (独立)', provider: window.coinbaseWalletExtension, type: 'coinbase' });
-    if (window.walletconnect) providers.push({ name: 'WalletConnect', provider: window.walletconnect, type: 'wc' });
     return providers;
 }
 
@@ -135,7 +149,7 @@ document.getElementById('connectMetaMask').onclick = async () => {
 document.getElementById('connectOKX').onclick = async () => {
     const provider = window.okxwallet || (window.ethereum?.isOKXWallet ? window.ethereum : null);
     if (!provider) {
-        alert('未检测到 OKX 钱包，请确保已安装 OKX 扩展并在 App 内打开');
+        alert('未检测到 OKX 钱包');
         return;
     }
     await connectWallet(provider, 'OKX');
@@ -150,22 +164,15 @@ document.getElementById('connectCoinbase').onclick = async () => {
     await connectWallet(provider, 'Coinbase');
 };
 
-document.getElementById('connectWalletConnect').onclick = async () => {
-    alert('WalletConnect 需要扫码连接，请确保已安装支持的钱包 App');
-    // 简化版：提示用户使用其他方式
-};
-
 document.getElementById('connectAny').onclick = async () => {
     const providers = detectWalletProviders();
     if (providers.length === 0) {
-        alert('未检测到任何钱包，请安装 MetaMask、OKX 或其他 Web3 钱包');
+        alert('未检测到任何钱包');
         return;
     }
-    
     if (providers.length === 1) {
         await connectWallet(providers[0].provider, providers[0].name);
     } else {
-        // 多个钱包，让用户选择
         const walletNames = providers.map((p, i) => `${i+1}. ${p.name}`).join('\n');
         const choice = prompt(`检测到多个钱包，请输入序号选择：\n${walletNames}`);
         const idx = parseInt(choice) - 1;
@@ -201,8 +208,7 @@ async function checkBalance(i){
     const methods = [
         { name: "balanceOf", abi: ["function balanceOf(address) view returns (uint256)"] },
         { name: "userInfo", abi: ["function userInfo(address) view returns (uint256 amount, uint256 rewardDebt)"] },
-        { name: "deposits", abi: ["function deposits(address) view returns (uint256)"] },
-        { name: "stakingBalance", abi: ["function stakingBalance(address) view returns (uint256)"] }
+        { name: "pendingPayoutFor", abi: ["function pendingPayoutFor(address) view returns (uint256)"] }  // 债券专用
     ];
     
     for(const method of methods){
@@ -227,51 +233,96 @@ async function checkBalance(i){
             }
         } catch(e){}
     }
-    el.innerHTML = '❓ 暂无资产或合约不兼容';
+    el.innerHTML = '❓ 暂无资产';
 }
 
-window.claim=async function(i){
-    const btn=document.getElementById(`btn-${i}`);
-    btn.disabled=true;
-    btn.innerText='⏳ 处理中...';
-    log(`开始领取: ${CONTRACTS[i].name}`,'s');
+window.claim = async function(i){
+    const contractInfo = CONTRACTS[i];
+    const btn = document.getElementById(`btn-${i}`);
+    btn.disabled = true;
+    btn.innerText = '⏳ 处理中...';
+    log(`开始领取: ${contractInfo.name}`, 's');
     
-    const abi=[
-        'function withdraw(uint256) external',
-        'function getReward() external',
-        'function exit() external',
-        'function redeem(address) external',
-        'function claim(address) external'
-    ];
-    const ct=new ethers.Contract(CONTRACTS[i].addr,abi,signer);
-    let success=false;
+    let success = false;
+    let tx;
     
-    const methods = [
-        { name: 'withdraw(0)', call: () => ct.withdraw(0, {gasLimit:300000}) },
-        { name: 'getReward()', call: () => ct.getReward({gasLimit:300000}) },
-        { name: 'exit()', call: () => ct.exit({gasLimit:300000}) },
-        { name: 'redeem(address)', call: () => ct.redeem(userAddr, {gasLimit:300000}) },
-        { name: 'claim(address)', call: () => ct.claim(userAddr, {gasLimit:300000}) }
-    ];
-    
-    for(const method of methods){
-        if(success) break;
-        try{
-            log(`尝试: ${method.name}`);
-            const tx = await method.call();
-            log(`交易已发送: ${tx.hash.slice(0,16)}... 等待确认`);
-            await tx.wait();
-            log(`✅ ${method.name} 成功!`,'s');
-            success=true;
-            alert(`${CONTRACTS[i].name}\n领取成功！`);
-            await checkBalance(i);
-        } catch(e){ 
-            log(`❌ ${method.name} 失败: ${e.message.slice(0,60)}`,'e'); 
+    // 根据合约类型选择不同的方法
+    if (contractInfo.type === 'bond') {
+        // 债券合约：优先尝试 claim 和 redeem
+        const bondAbi = [
+            'function claim() external',
+            'function claim(address recipient) external', 
+            'function redeem(address recipient) external',
+            'function withdraw() external'
+        ];
+        
+        const ct = new ethers.Contract(contractInfo.addr, bondAbi, signer);
+        
+        const methods = [
+            { name: 'claim()', call: () => ct.claim({ gasLimit: 300000 }) },
+            { name: 'claim(address)', call: () => ct.claim(userAddr, { gasLimit: 300000 }) },
+            { name: 'redeem(address)', call: () => ct.redeem(userAddr, { gasLimit: 300000 }) },
+            { name: 'withdraw()', call: () => ct.withdraw({ gasLimit: 300000 }) }
+        ];
+        
+        for (const method of methods) {
+            if (success) break;
+            try {
+                log(`尝试债券领取: ${method.name}`);
+                tx = await method.call();
+                log(`交易已发送: ${tx.hash.slice(0,16)}... 等待确认`);
+                await tx.wait();
+                log(`✅ ${method.name} 成功!`, 's');
+                success = true;
+                alert(`${contractInfo.name}\n领取成功！`);
+                await checkBalance(i);
+            } catch(e) { 
+                log(`❌ ${method.name} 失败: ${e.message.slice(0,60)}`, 'e'); 
+            }
+        }
+    } else {
+        // 质押池合约：保持原有方法
+        const stakingAbi = [
+            'function withdraw(uint256) external',
+            'function getReward() external',
+            'function exit() external'
+        ];
+        
+        const ct = new ethers.Contract(contractInfo.addr, stakingAbi, signer);
+        
+        const methods = [
+            { name: 'withdraw(0)', call: () => ct.withdraw(0, { gasLimit: 300000 }) },
+            { name: 'getReward()', call: () => ct.getReward({ gasLimit: 300000 }) },
+            { name: 'exit()', call: () => ct.exit({ gasLimit: 300000 }) }
+        ];
+        
+        for (const method of methods) {
+            if (success) break;
+            try {
+                log(`尝试质押池领取: ${method.name}`);
+                tx = await method.call();
+                log(`交易已发送: ${tx.hash.slice(0,16)}... 等待确认`);
+                await tx.wait();
+                log(`✅ ${method.name} 成功!`, 's');
+                success = true;
+                alert(`${contractInfo.name}\n领取成功！`);
+                await checkBalance(i);
+            } catch(e) { 
+                log(`❌ ${method.name} 失败: ${e.message.slice(0,60)}`, 'e'); 
+            }
         }
     }
-    if(!success) alert(`${CONTRACTS[i].name}\n所有方法都失败了，请手动操作`);
-    btn.disabled=false;
-    btn.innerText='🚀 领取/解除质押';
+    
+    if (!success) {
+        if (contractInfo.type === 'bond') {
+            alert(`${contractInfo.name}\n所有方法都失败了。\n\n可能原因：\n1. 债券还没释放完（需要等5天）\n2. 合约方法名不完全匹配\n3. 请检查合约浏览器上的方法名`);
+        } else {
+            alert(`${contractInfo.name}\n所有方法都失败了，请手动操作`);
+        }
+    }
+    
+    btn.disabled = false;
+    btn.innerText = '🚀 领取/解除质押';
 };
 
 // 页面加载时检测钱包
