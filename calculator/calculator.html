@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复利计算器 · 双链币价分离版</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: #f5f9fe;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px -12px rgba(0, 20, 30, 0.25);
+            padding: 32px 28px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #0b2b3f;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .subhead {
+            color: #3a5a6f;
+            font-size: 0.95rem;
+            margin-bottom: 28px;
+            border-left: 4px solid #2f7b9c;
+            padding-left: 14px;
+            background: #f0f6fc;
+            border-radius: 0 12px 12px 0;
+            line-height: 1.4;
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 20px;
+        }
+
+        .field-group {
+            margin-bottom: 6px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            color: #1f4a62;
+            margin-bottom: 4px;
+        }
+
+        label .hint {
+            font-weight: 400;
+            text-transform: none;
+            color: #5b7e94;
+            font-size: 0.75rem;
+        }
+
+        label .required {
+            color: #d9534f;
+            margin-left: 4px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .input-wrapper input,
+        .input-wrapper select {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 1rem;
+            font-weight: 500;
+            background: #f8fcff;
+            border: 1.5px solid #dbe7f0;
+            border-radius: 16px;
+            transition: 0.2s;
+            color: #0a2635;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .input-wrapper input:focus,
+        .input-wrapper select:focus {
+            border-color: #1f7b9e;
+            background: white;
+            box-shadow: 0 4px 10px rgba(26, 115, 160, 0.12);
+        }
+
+        .input-wrapper input[type="number"] {
+            -moz-appearance: textfield;
+            padding-right: 40px;
+        }
+
+        .input-wrapper input[type="number"]::-webkit-inner-spin-button,
+        .input-wrapper input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .input-wrapper input:disabled,
+        .input-wrapper input[readonly] {
+            background: #f0f4f8;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        .input-suffix {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #5b7e94;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .inline-hint {
+            font-size: 0.75rem;
+            color: #2a607a;
+            margin-top: 4px;
+            padding-left: 4px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 14px;
+            margin: 28px 0 18px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 14px 18px;
+            border: none;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 1.05rem;
+            background: #eaf1f8;
+            color: #1f4a62;
+            cursor: pointer;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #1a6b8a;
+            color: white;
+            box-shadow: 0 8px 18px -6px #1a6b8a60;
+        }
+
+        .btn-primary:hover {
+            background: #0f5773;
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #e2ecf5;
+        }
+
+        .btn-secondary:hover {
+            background: #d0dfec;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-panel {
+            background: #f0f7fe;
+            border-radius: 24px;
+            padding: 22px 24px;
+            margin-top: 20px;
+            border: 1px solid #d9e8f2;
+            min-height: 60px;
+        }
+
+        .result-placeholder {
+            color: #6a8ba3;
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .result-grid {
+            display: none;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px 12px;
+            width: 100%;
+        }
+
+        .result-grid.show {
+            display: grid;
+        }
+
+        .result-item {
+            background: white;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .result-item .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #3f6a82;
+            letter-spacing: 0.03em;
+        }
+
+        .result-item .value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #043044;
+            word-break: break-all;
+        }
+
+        .result-item .value.small {
+            font-size: 0.95rem;
+        }
+
+        .result-item .value.positive {
+            color: #0b6b4a;
+        }
+
+        .result-item .value.fee {
+            color: #9b4a3a;
+        }
+
+        .result-item .value.gold {
+            color: #b8860b;
+        }
+
+        .result-item .value.zero {
+            color: #999;
+            font-weight: 400;
+        }
+
+        .result-divider {
+            grid-column: 1 / -1;
+            border-top: 2px dashed #b8d0e0;
+            margin: 4px 0 8px 0;
+            padding: 0;
+        }
+
+        .result-item.highlight {
+            background: #e6f0fa;
+        }
+
+        .result-item.highlight-gold {
+            background: #fdf6e3;
+        }
+
+        .extra-note {
+            display: none;
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: #e2edf6;
+            border-radius: 18px;
+            font-size: 0.9rem;
+            color: #1d4d66;
+            border-left: 4px solid #2f7b9c;
+        }
+
+        .extra-note.show {
+            display: block;
+        }
+
+        .chart-wrapper {
+            display: none;
+            margin-top: 24px;
+            background: white;
+            border-radius: 20px;
+            padding: 16px 12px 8px 12px;
+            border: 1px solid #deecf5;
+        }
+
+        .chart-wrapper.show {
+            display: block;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 45%;
+        }
+
+        .chart-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .disclaimer-section {
+            margin-top: 28px;
+            padding: 20px 20px 12px 20px;
+            background: #f8fafc;
+            border-radius: 20px;
+            border: 1px solid #e2edf5;
+        }
+
+        .disclaimer-section h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #1f4a62;
+            margin-bottom: 10px;
+            letter-spacing: 0.02em;
+        }
+
+        .disclaimer-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .disclaimer-section li {
+            font-size: 0.85rem;
+            color: #2d5770;
+            padding: 6px 0 6px 24px;
+            position: relative;
+            line-height: 1.5;
+            border-bottom: 1px solid #e8f0f5;
+        }
+
+        .disclaimer-section li:last-child {
+            border-bottom: none;
+        }
+
+        .disclaimer-section li::before {
+            content: "•";
+            position: absolute;
+            left: 4px;
+            color: #1f7b9e;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .footnote {
+            margin-top: 16px;
+            text-align: right;
+            font-size: 0.75rem;
+            color: #6a8ba3;
+            border-top: 1px solid #d7e4ed;
+            padding-top: 14px;
+        }
+
+        .alert-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 16px;
+            padding: 14px 20px;
+            margin-bottom: 18px;
+            color: #856404;
+            font-weight: 500;
+            display: none;
+        }
+
+        .alert-banner.show {
+            display: block;
+        }
+
+        .field-group.extra-hidden {
+            display: none;
+        }
+
+        .field-group.discount-hidden {
+            display: none;
+        }
+
+        .lang-switch {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            justify-content: flex-end;
+        }
+
+        .lang-btn {
+            padding: 4px 14px;
+            border: 1.5px solid #dbe7f0;
+            border-radius: 20px;
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #5b7e94;
+            transition: 0.2s;
+        }
+
+        .lang-btn:hover {
+            border-color: #1f7b9e;
+            color: #1f4a62;
+        }
+
+        .lang-btn.active {
+            background: #1a6b8a;
+            border-color: #1a6b8a;
+            color: white;
+        }
+
+        @media (max-width: 650px) {
+            .card {
+                padding: 20px 16px;
+            }
+            .grid-2col {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .btn-group {
+                flex-direction: column;
+            }
+            .btn {
+                min-width: unset;
+            }
+            .result-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .disclaimer-section li {
+                font-size: 0.8rem;
+                padding: 5px 0 5px 20px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .chart-container {
+                padding-bottom: 60%;
+            }
+            .lang-switch {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .result-grid {
+                grid-template-columns: 1fr;
+            }
+            .card {
+                padding: 16px 12px;
+            }
+            .chart-container {
+                padding-bottom: 70%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <!-- 语言切换 -->
+        <div class="lang-switch">
+            <button class="lang-btn active" data-lang="zh" id="langZh">中文</button>
+            <button class="lang-btn" data-lang="en" id="langEn">English</button>
+        </div>
+
+        <h1 id="title">⛓️ 复利计算器 · 双链币价分离版</h1>
+        <div class="subhead" id="subhead">
+            📅 支持 Polygon / Anubis 链 · 购买价与当日价分离 · 债券/ILO支持折扣输入
+        </div>
+
+        <div class="alert-banner" id="alertBanner">
+            ⚠️ 请先选择「区块链」和「产品类型」后再进行计算
+        </div>
+
+        <div class="grid-2col">
+            <!-- 区块链选择 -->
+            <div class="field-group">
+                <label id="labelChain">⛓️ 选择区块链 <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <select id="chainSelect">
+                        <option value="">-- 请选择区块链 --</option>
+                        <option value="polygon">Polygon 链</option>
+                        <option value="anubis">Anubis 链</option>
+                    </select>
+                </div>
+                <div class="inline-hint" id="hintChain">选择链后，产品列表自动更新</div>
+            </div>
+
+            <!-- 产品类型 -->
+            <div class="field-group">
+                <label id="labelProduct">📦 产品类型 <span class="required">*</span></label>
+                <div class="input-wrapper">
+                    <select id="productSelect" disabled>
+                        <option value="">-- 请先选择区块链 --</option>
+                    </select>
+                </div>
+                <div class="inline-hint" id="hintProduct">选择质押周期与额外收益率</div>
+            </div>
+
+            <!-- 折扣输入 -->
+            <div class="field-group discount-hidden" id="discountFieldGroup">
+                <label id="labelDiscount">🏷️ 币价折扣 <span class="hint">(%)</span></label>
+                <div class="input-wrapper">
+                    <input type="text" id="discountInput" value="" placeholder="请输入折扣" inputmode="decimal">
+                    <span class="input-suffix">%</span>
+                </div>
+                <div class="inline-hint" id="hintDiscount">折扣相当于增加初始币量（折扣后实际购买价 = 原价 × (1 - 折扣%)）</div>
+            </div>
+
+            <div class="field-group">
+                <label id="labelLockDays">📆 质押周期 (天)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="lockDays" value="" step="1" min="1" readonly>
+                </div>
+                <div class="inline-hint" id="hintLockDays">由产品选择自动设定</div>
+            </div>
+            <div class="field-group">
+                <label id="labelTotalDays">📆 投资总天数</label>
+                <div class="input-wrapper">
+                    <input type="text" id="totalDays" value="" placeholder="请输入天数" inputmode="decimal">
+                </div>
+                <div class="inline-hint" id="hintTotalDays">可大于质押周期，自动滚动复投</div>
+            </div>
+            <div class="field-group">
+                <label id="labelPrincipal">💰 本金 (人民币 ¥)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="principal" value="" placeholder="请输入本金" inputmode="decimal">
+                </div>
+            </div>
+            <div class="field-group">
+                <label id="labelBuyPrice">📈 购买时币价 (美金 $)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="buyPrice" value="" placeholder="请输入购买价" inputmode="decimal">
+                </div>
+                <div class="inline-hint" id="hintBuyPrice">用于计算初始币量</div>
+            </div>
+            <div class="field-group">
+                <label id="labelCurrentPrice">📊 当日币价 (美金 $)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="currentPrice" value="" placeholder="请输入当日价" inputmode="decimal">
+                </div>
+                <div class="inline-hint" id="hintCurrentPrice">选择链后自动设定</div>
+            </div>
+            <div class="field-group">
+                <label id="labelQuantity">🪙 初始币量</label>
+                <div class="input-wrapper">
+                    <input type="text" id="quantity" value="" placeholder="自动计算" readonly>
+                </div>
+                <div class="inline-hint" id="hintQuantity">由本金 ÷ (购买价 × 汇率) 自动计算</div>
+            </div>
+            <div class="field-group">
+                <label id="labelRebase">⚡ 单次爆块收益 (Rebase)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="rebaseRate" value="" placeholder="请输入收益率" inputmode="decimal">
+                    <span class="input-suffix">%</span>
+                </div>
+                <div class="inline-hint" id="hintRebase">每次爆块的收益率，自动复利</div>
+            </div>
+            <div class="field-group">
+                <label id="labelHours">⏱️ 爆块间隔 (小时)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="hoursPerCycle" value="" placeholder="请输入小时数" inputmode="decimal">
+                </div>
+                <div class="inline-hint" id="hintHours">建议 6 小时</div>
+            </div>
+            <div class="field-group" id="extraFieldGroup">
+                <label id="labelExtra">🎁 额外收益 (本金 %)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="extraPercent" value="" readonly>
+                    <span class="input-suffix">%</span>
+                </div>
+                <div class="inline-hint" id="hintExtra">由产品选择自动设定</div>
+            </div>
+            <div class="field-group">
+                <label id="labelRate">💱 USDT汇率 (USD/CNY)</label>
+                <div class="input-wrapper">
+                    <input type="text" id="exchangeRate" value="" placeholder="请输入汇率" inputmode="decimal">
+                </div>
+                <div class="inline-hint" id="hintRate">建议 6.72</div>
+            </div>
+            <div class="field-group">
+                <label id="labelFee">⚙️ 手续费/滑点</label>
+                <div class="input-wrapper">
+                    <input type="text" id="feePercent" value="" placeholder="请输入手续费" inputmode="decimal">
+                    <span class="input-suffix">%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" id="calcBtn">🧮 计算 & 更新</button>
+            <button class="btn btn-secondary" id="resetBtn">↺ 重置</button>
+        </div>
+
+        <!-- 结果面板 -->
+        <div class="result-panel" id="resultPanel">
+            <div class="result-placeholder" id="placeholder">
+                📊 请填写所有参数后点击「计算 & 更新」
+            </div>
+            <div class="result-grid" id="resultGrid">
+                <div class="result-item">
+                    <div class="label" id="rLabelPrincipal">初始本金</div>
+                    <div class="value" id="displayPrincipal">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelFinal">最终收益</div>
+                    <div class="value" id="displayFinalPrincipal">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelInterest">总利息</div>
+                    <div class="value positive" id="displayInterest">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelExtra">总额外收益</div>
+                    <div class="value" id="displayExtra">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelInitQty">初始币量</div>
+                    <div class="value small" id="displayInitQty">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelFinalQty">最终币量</div>
+                    <div class="value small" id="displayFinalQty">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelQtyInterest">币量总利息</div>
+                    <div class="value small positive" id="displayQtyInterest">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelQtyExtra">币量总额外</div>
+                    <div class="value small" id="displayQtyExtra">-</div>
+                </div>
+
+                <div class="result-divider"></div>
+
+                <div class="result-item highlight" style="grid-column: span 2;">
+                    <div class="label" id="rLabelTotal">📊 扣除手续费后总收益</div>
+                    <div class="value" id="displayTotalAfterFee" style="font-size:1.4rem; color:#1a6b8a;">-</div>
+                </div>
+
+                <div class="result-item highlight-gold" style="grid-column: span 2; background: #fdf6e3;">
+                    <div class="label" id="rLabelMinPrice">🪙 最低币价 ($1) · 扣除手续费后总收益</div>
+                    <div class="value gold" id="displayTotalMinPrice" style="font-size:1.4rem;">-</div>
+                </div>
+
+                <div class="result-item">
+                    <div class="label" id="rLabelFee">手续费 (当前币价)</div>
+                    <div class="value fee" id="displayFeeAmount">-</div>
+                </div>
+                <div class="result-item">
+                    <div class="label" id="rLabelFeeMin">手续费 (最低币价)</div>
+                    <div class="value fee" id="displayFeeAmountMin">-</div>
+                </div>
+            </div>
+            <div class="extra-note" id="detailNote">
+                ⚡ 链: <span id="displayChain">--</span> · 质押周期: <span id="displayLockDays">--</span>天 · 额外收益: <span id="displayExtraRate">--</span>% (本金) · 爆块周期: 每 <span id="displayCycle">--</span> 小时 · 手续费率 <span id="displayFeePercent">--</span>%
+            </div>
+        </div>
+
+        <!-- 图表 -->
+        <div class="chart-wrapper" id="chartWrapper">
+            <div class="chart-container">
+                <canvas id="growthChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 底部说明 -->
+        <div class="disclaimer-section" id="disclaimerSection">
+            <h4 id="disclaimerTitle">📌 重要说明</h4>
+            <ul id="disclaimerList">
+                <li id="d1"><strong>1.</strong> 本计算结果为理论收益，不代表最终收益，实际收益可能因市场波动、平台规则等因素而不同。</li>
+                <li id="d2"><strong>2.</strong> <strong>每次爆块自动复利</strong>：每次爆块的利息自动加入本金，下一爆块按新本金计算。</li>
+                <li id="d3"><strong>3.</strong> <strong>额外收益 = 本金 × 百分比</strong>，每个质押周期结束后发放，不参与复利，但计入下周期本金。</li>
+                <li id="d4"><strong>4.</strong> <strong>购买时币价</strong> 用于计算初始币量；<strong>当日币价</strong> 用于计算当前收益，两者可不同。</li>
+                <li id="d5"><strong>5.</strong> <strong>链预设币价：</strong>Polygon 链 $1.7，Anubis 链 $2.5。</li>
+                <li id="d6"><strong>6.</strong> <strong>币价折扣：</strong>债券和ILO产品支持输入折扣（%），折扣相当于增加初始币量（实际购买价 = 原价 × (1 - 折扣%)）。</li>
+                <li id="d7"><strong>7.</strong> <strong>产品说明：</strong>债券、能量值、ILO 周期均为360天，无额外收益。</li>
+            </ul>
+        </div>
+
+        <div class="footnote" id="footnote">💡 曲线展示每日资产 (扣手续费前) · 橙色点为扣除手续费后最终总收益</div>
+    </div>
+
+    <script>
+        (function() {
+            "use strict";
+
+            // =============================================
+            // 语言包
+            // =============================================
+            const lang = {
+                zh: {
+                    title: '⛓️ 复利计算器 · 双链币价分离版',
+                    subhead: '📅 支持 Polygon / Anubis 链 · 购买价与当日价分离 · 债券/ILO支持折扣输入',
+                    alert: '⚠️ 请先选择「区块链」和「产品类型」后再进行计算',
+                    labelChain: '⛓️ 选择区块链 *',
+                    hintChain: '选择链后，产品列表自动更新',
+                    labelProduct: '📦 产品类型 *',
+                    hintProduct: '选择质押周期与额外收益率',
+                    labelDiscount: '🏷️ 币价折扣 (%)',
+                    hintDiscount: '折扣相当于增加初始币量（折扣后实际购买价 = 原价 × (1 - 折扣%)）',
+                    labelLockDays: '📆 质押周期 (天)',
+                    hintLockDays: '由产品选择自动设定',
+                    labelTotalDays: '📆 投资总天数',
+                    hintTotalDays: '可大于质押周期，自动滚动复投',
+                    labelPrincipal: '💰 本金 (人民币 ¥)',
+                    labelBuyPrice: '📈 购买时币价 (美金 $)',
+                    hintBuyPrice: '用于计算初始币量',
+                    labelCurrentPrice: '📊 当日币价 (美金 $)',
+                    hintCurrentPrice: '选择链后自动设定',
+                    labelQuantity: '🪙 初始币量',
+                    hintQuantity: '由本金 ÷ (购买价 × 汇率) 自动计算',
+                    labelRebase: '⚡ 单次爆块收益 (Rebase)',
+                    hintRebase: '每次爆块的收益率，自动复利',
+                    labelHours: '⏱️ 爆块间隔 (小时)',
+                    hintHours: '建议 6 小时',
+                    labelExtra: '🎁 额外收益 (本金 %)',
+                    hintExtra: '由产品选择自动设定',
+                    labelRate: '💱 USDT汇率 (USD/CNY)',
+                    hintRate: '建议 6.72',
+                    labelFee: '⚙️ 手续费/滑点',
+                    placeholder: '📊 请填写所有参数后点击「计算 & 更新」',
+                    rLabelPrincipal: '初始本金',
+                    rLabelFinal: '最终收益',
+                    rLabelInterest: '总利息',
+                    rLabelExtra: '总额外收益',
+                    rLabelInitQty: '初始币量',
+                    rLabelFinalQty: '最终币量',
+                    rLabelQtyInterest: '币量总利息',
+                    rLabelQtyExtra: '币量总额外',
+                    rLabelTotal: '📊 扣除手续费后总收益',
+                    rLabelMinPrice: '🪙 最低币价 ($1) · 扣除手续费后总收益',
+                    rLabelFee: '手续费 (当前币价)',
+                    rLabelFeeMin: '手续费 (最低币价)',
+                    disclaimerTitle: '📌 重要说明',
+                    d1: '1. 本计算结果为理论收益，不代表最终收益，实际收益可能因市场波动、平台规则等因素而不同。',
+                    d2: '2. 每次爆块自动复利：每次爆块的利息自动加入本金，下一爆块按新本金计算。',
+                    d3: '3. 额外收益 = 本金 × 百分比，每个质押周期结束后发放，不参与复利，但计入下周期本金。',
+                    d4: '4. 购买时币价 用于计算初始币量；当日币价 用于计算当前收益，两者可不同。',
+                    d5: '5. 链预设币价：Polygon 链 $1.7，Anubis 链 $2.5。',
+                    d6: '6. 币价折扣：债券和ILO产品支持输入折扣（%），折扣相当于增加初始币量（实际购买价 = 原价 × (1 - 折扣%)）。',
+                    d7: '7. 产品说明：债券、能量值、ILO 周期均为360天，无额外收益。',
+                    footnote: '💡 曲线展示每日资产 (扣手续费前) · 橙色点为扣除手续费后最终总收益',
+                    calcBtn: '🧮 计算 & 更新',
+                    resetBtn: '↺ 重置',
+                    chainPlaceholder: '-- 请选择区块链 --',
+                    productPlaceholder: '-- 请先选择区块链 --',
+                    discountPlaceholder: '请输入折扣',
+                    principalPlaceholder: '请输入本金',
+                    buyPricePlaceholder: '请输入购买价',
+                    currentPricePlaceholder: '请输入当日价',
+                    quantityPlaceholder: '自动计算',
+                    rebasePlaceholder: '请输入收益率',
+                    hoursPlaceholder: '请输入小时数',
+                    ratePlaceholder: '请输入汇率',
+                    feePlaceholder: '请输入手续费',
+                    totalDaysPlaceholder: '请输入天数',
+                },
+                en: {
+                    title: '⛓️ Compound Calculator · Dual-Chain Price',
+                    subhead: '📅 Supports Polygon / Anubis · Buy price separate from current price · Bond/ILO supports discount',
+                    alert: '⚠️ Please select "Blockchain" and "Product Type" first',
+                    labelChain: '⛓️ Select Blockchain *',
+                    hintChain: 'Select chain, product list updates automatically',
+                    labelProduct: '📦 Product Type *',
+                    hintProduct: 'Select staking period & extra yield',
+                    labelDiscount: '🏷️ Price Discount (%)',
+                    hintDiscount: 'Discount increases initial token amount (actual buy price = original × (1 - discount%))',
+                    labelLockDays: '📆 Staking Period (days)',
+                    hintLockDays: 'Auto-set by product selection',
+                    labelTotalDays: '📆 Total Investment Days',
+                    hintTotalDays: 'Can exceed staking period, auto compound',
+                    labelPrincipal: '💰 Principal (CNY ¥)',
+                    labelBuyPrice: '📈 Buy Price (USD $)',
+                    hintBuyPrice: 'Used to calculate initial token amount',
+                    labelCurrentPrice: '📊 Current Price (USD $)',
+                    hintCurrentPrice: 'Auto-set after chain selection',
+                    labelQuantity: '🪙 Initial Token Amount',
+                    hintQuantity: 'Auto-calculated: Principal ÷ (Buy Price × Rate)',
+                    labelRebase: '⚡ Rebase Rate per Block',
+                    hintRebase: 'Yield per block, auto-compounded',
+                    labelHours: '⏱️ Block Interval (hours)',
+                    hintHours: 'Recommended: 6 hours',
+                    labelExtra: '🎁 Extra Yield (% of Principal)',
+                    hintExtra: 'Auto-set by product selection',
+                    labelRate: '💱 USDT Rate (USD/CNY)',
+                    hintRate: 'Recommended: 6.72',
+                    labelFee: '⚙️ Fee / Slippage',
+                    placeholder: '📊 Fill in all parameters and click "Calculate & Update"',
+                    rLabelPrincipal: 'Initial Principal',
+                    rLabelFinal: 'Final Return',
+                    rLabelInterest: 'Total Interest',
+                    rLabelExtra: 'Total Extra Yield',
+                    rLabelInitQty: 'Initial Tokens',
+                    rLabelFinalQty: 'Final Tokens',
+                    rLabelQtyInterest: 'Token Interest',
+                    rLabelQtyExtra: 'Token Extra Yield',
+                    rLabelTotal: '📊 Total Return After Fee',
+                    rLabelMinPrice: '🪙 Min Price ($1) · Total Return After Fee',
+                    rLabelFee: 'Fee (Current Price)',
+                    rLabelFeeMin: 'Fee (Min Price)',
+                    disclaimerTitle: '📌 Important Notes',
+                    d1: '1. This is theoretical return, not guaranteed. Actual returns may vary due to market volatility and platform rules.',
+                    d2: '2. Auto-compound per block: Interest is added to principal each block, compounding automatically.',
+                    d3: '3. Extra Yield = Principal × Percentage, paid at end of each staking cycle, not compounded but added to next cycle principal.',
+                    d4: '4. Buy Price is used to calculate initial tokens; Current Price is used to calculate current returns.',
+                    d5: '5. Chain preset prices: Polygon $1.7, Anubis $2.5.',
+                    d6: '6. Price Discount: Bond and ILO products support discount input (%), discount increases initial token amount.',
+                    d7: '7. Product info: Bond, Energy, ILO all have 360-day period with no extra yield.',
+                    footnote: '💡 Chart shows daily assets (before fee) · Orange dot = final return after fee',
+                    calcBtn: '🧮 Calculate & Update',
+                    resetBtn: '↺ Reset',
+                    chainPlaceholder: '-- Select Blockchain --',
+                    productPlaceholder: '-- Select Blockchain First --',
+                    discountPlaceholder: 'Enter discount',
+                    principalPlaceholder: 'Enter principal',
+                    buyPricePlaceholder: 'Enter buy price',
+                    currentPricePlaceholder: 'Enter current price',
+                    quantityPlaceholder: 'Auto-calculated',
+                    rebasePlaceholder: 'Enter rebase rate',
+                    hoursPlaceholder: 'Enter hours',
+                    ratePlaceholder: 'Enter rate',
+                    feePlaceholder: 'Enter fee',
+                    totalDaysPlaceholder: 'Enter days',
+                }
+            };
+
+            // =============================================
+            // 检测系统语言
+            // =============================================
+            function detectLanguage() {
+                const navLang = navigator.language || navigator.languages?.[0] || 'zh-CN';
+                return navLang.startsWith('zh') ? 'zh' : 'en';
+            }
+
+            let currentLang = detectLanguage();
+
+            // =============================================
+            // 应用语言
+            // =============================================
+            function applyLanguage(langKey) {
+                const t = lang[langKey];
+                if (!t) return;
+
+                document.getElementById('title').textContent = t.title;
+                document.getElementById('subhead').textContent = t.subhead;
+                document.getElementById('alertBanner').textContent = t.alert;
+
+                document.getElementById('labelChain').innerHTML = t.labelChain;
+                document.getElementById('hintChain').textContent = t.hintChain;
+                document.getElementById('labelProduct').innerHTML = t.labelProduct;
+                document.getElementById('hintProduct').textContent = t.hintProduct;
+                document.getElementById('labelDiscount').innerHTML = t.labelDiscount;
+                document.getElementById('hintDiscount').textContent = t.hintDiscount;
+                document.getElementById('labelLockDays').textContent = t.labelLockDays;
+                document.getElementById('hintLockDays').textContent = t.hintLockDays;
+                document.getElementById('labelTotalDays').textContent = t.labelTotalDays;
+                document.getElementById('hintTotalDays').textContent = t.hintTotalDays;
+                document.getElementById('labelPrincipal').textContent = t.labelPrincipal;
+                document.getElementById('labelBuyPrice').textContent = t.labelBuyPrice;
+                document.getElementById('hintBuyPrice').textContent = t.hintBuyPrice;
+                document.getElementById('labelCurrentPrice').textContent = t.labelCurrentPrice;
+                document.getElementById('hintCurrentPrice').textContent = t.hintCurrentPrice;
+                document.getElementById('labelQuantity').textContent = t.labelQuantity;
+                document.getElementById('hintQuantity').textContent = t.hintQuantity;
+                document.getElementById('labelRebase').textContent = t.labelRebase;
+                document.getElementById('hintRebase').textContent = t.hintRebase;
+                document.getElementById('labelHours').textContent = t.labelHours;
+                document.getElementById('hintHours').textContent = t.hintHours;
+                document.getElementById('labelExtra').textContent = t.labelExtra;
+                document.getElementById('hintExtra').textContent = t.hintExtra;
+                document.getElementById('labelRate').textContent = t.labelRate;
+                document.getElementById('hintRate').textContent = t.hintRate;
+                document.getElementById('labelFee').textContent = t.labelFee;
+
+                document.getElementById('placeholder').textContent = t.placeholder;
+
+                document.getElementById('rLabelPrincipal').textContent = t.rLabelPrincipal;
+                document.getElementById('rLabelFinal').textContent = t.rLabelFinal;
+                document.getElementById('rLabelInterest').textContent = t.rLabelInterest;
+                document.getElementById('rLabelExtra').textContent = t.rLabelExtra;
+                document.getElementById('rLabelInitQty').textContent = t.rLabelInitQty;
+                document.getElementById('rLabelFinalQty').textContent = t.rLabelFinalQty;
+                document.getElementById('rLabelQtyInterest').textContent = t.rLabelQtyInterest;
+                document.getElementById('rLabelQtyExtra').textContent = t.rLabelQtyExtra;
+                document.getElementById('rLabelTotal').textContent = t.rLabelTotal;
+                document.getElementById('rLabelMinPrice').textContent = t.rLabelMinPrice;
+                document.getElementById('rLabelFee').textContent = t.rLabelFee;
+                document.getElementById('rLabelFeeMin').textContent = t.rLabelFeeMin;
+
+                document.getElementById('disclaimerTitle').textContent = t.disclaimerTitle;
+                document.getElementById('d1').innerHTML = t.d1;
+                document.getElementById('d2').innerHTML = t.d2;
+                document.getElementById('d3').innerHTML = t.d3;
+                document.getElementById('d4').innerHTML = t.d4;
+                document.getElementById('d5').innerHTML = t.d5;
+                document.getElementById('d6').innerHTML = t.d6;
+                document.getElementById('d7').innerHTML = t.d7;
+
+                document.getElementById('footnote').textContent = t.footnote;
+
+                document.getElementById('calcBtn').textContent = t.calcBtn;
+                document.getElementById('resetBtn').textContent = t.resetBtn;
+
+                // 更新 placeholder
+                document.querySelectorAll('input[type="text"]').forEach(el => {
+                    const id = el.id;
+                    if (id === 'discountInput' && el.placeholder !== '') el.placeholder = t.discountPlaceholder;
+                    if (id === 'principal') el.placeholder = t.principalPlaceholder;
+                    if (id === 'buyPrice') el.placeholder = t.buyPricePlaceholder;
+                    if (id === 'currentPrice') el.placeholder = t.currentPricePlaceholder;
+                    if (id === 'quantity') el.placeholder = t.quantityPlaceholder;
+                    if (id === 'rebaseRate') el.placeholder = t.rebasePlaceholder;
+                    if (id === 'hoursPerCycle') el.placeholder = t.hoursPlaceholder;
+                    if (id === 'exchangeRate') el.placeholder = t.ratePlaceholder;
+                    if (id === 'feePercent') el.placeholder = t.feePlaceholder;
+                    if (id === 'totalDays') el.placeholder = t.totalDaysPlaceholder;
+                });
+
+                // 更新 select 占位
+                const chainSelect = document.getElementById('chainSelect');
+                if (chainSelect.options[0]) {
+                    chainSelect.options[0].textContent = t.chainPlaceholder;
+                }
+                const productSelect = document.getElementById('productSelect');
+                if (productSelect.options[0]) {
+                    productSelect.options[0].textContent = t.productPlaceholder;
+                }
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.lang === langKey);
+                });
+
+                currentLang = langKey;
+            }
+
+            // =============================================
+            // 语言切换事件
+            // =============================================
+            document.getElementById('langZh').addEventListener('click', function() {
+                applyLanguage('zh');
+            });
+            document.getElementById('langEn').addEventListener('click', function() {
+                applyLanguage('en');
+            });
+
+            // =============================================
+            // 产品配置（不包含链名称）
+            // =============================================
+            const productConfigs = {
+                'polygon_360': { lockDays: 360, extraPercent: 0.24, label: '360天质押 (额外0.24%)',
+                    labelEn: '360d Staking (Extra 0.24%)', chain: 'polygon', hasExtra: true,
+                    defaultCurrentPrice: 1.7, showDiscount: false },
+                'polygon_600': { lockDays: 600, extraPercent: 0.15, label: '600天质押 (额外0.15%)',
+                    labelEn: '600d Staking (Extra 0.15%)', chain: 'polygon', hasExtra: true,
+                    defaultCurrentPrice: 1.7, showDiscount: false },
+                'anubis_360': { lockDays: 360, extraPercent: 0.30, label: '360天质押 (额外0.3%)',
+                    labelEn: '360d Staking (Extra 0.3%)', chain: 'anubis', hasExtra: true,
+                    defaultCurrentPrice: 2.5, showDiscount: false },
+                'anubis_600': { lockDays: 600, extraPercent: 0.36, label: '600天质押 (额外0.36%)',
+                    labelEn: '600d Staking (Extra 0.36%)', chain: 'anubis', hasExtra: true,
+                    defaultCurrentPrice: 2.5, showDiscount: false },
+                'bond_360': { lockDays: 360, extraPercent: 0, label: '债券 360天 (无额外收益)',
+                    labelEn: 'Bond 360d (No Extra Yield)', chain: null, hasExtra: false, defaultCurrentPrice: null,
+                    showDiscount: true },
+                'energy_360': { lockDays: 360, extraPercent: 0, label: '能量值 360天 (无额外收益)',
+                    labelEn: 'Energy 360d (No Extra Yield)', chain: null, hasExtra: false, defaultCurrentPrice: null,
+                    showDiscount: false },
+                'ilo_360': { lockDays: 360, extraPercent: 0, label: 'ILO 360天 (无额外收益)',
+                    labelEn: 'ILO 360d (No Extra Yield)', chain: null, hasExtra: false, defaultCurrentPrice: null,
+                    showDiscount: true }
+            };
+
+            // 按链分组产品
+            const productsByChain = {
+                'polygon': [
+                    { value: 'polygon_360', label: '360天质押 (额外0.24%)', labelEn: '360d Staking (Extra 0.24%)' },
+                    { value: 'polygon_600', label: '600天质押 (额外0.15%)', labelEn: '600d Staking (Extra 0.15%)' }
+                ],
+                'anubis': [
+                    { value: 'anubis_360', label: '360天质押 (额外0.3%)', labelEn: '360d Staking (Extra 0.3%)' },
+                    { value: 'anubis_600', label: '600天质押 (额外0.36%)', labelEn: '600d Staking (Extra 0.36%)' }
+                ],
+                'independent': [
+                    { value: 'bond_360', label: '债券 360天 (无额外收益)', labelEn: 'Bond 360d (No Extra Yield)' },
+                    { value: 'energy_360', label: '能量值 360天 (无额外收益)', labelEn: 'Energy 360d (No Extra Yield)' },
+                    { value: 'ilo_360', label: 'ILO 360天 (无额外收益)', labelEn: 'ILO 360d (No Extra Yield)' }
+                ]
+            };
+
+            const chainDefaultPrices = {
+                'polygon': 1.7,
+                'anubis': 2.5
+            };
+
+            // =============================================
+            // DOM 元素
+            // =============================================
+            const chainSelect = document.getElementById('chainSelect');
+            const productSelect = document.getElementById('productSelect');
+            const lockDaysInput = document.getElementById('lockDays');
+            const extraPercentInput = document.getElementById('extraPercent');
+            const extraFieldGroup = document.getElementById('extraFieldGroup');
+            const discountFieldGroup = document.getElementById('discountFieldGroup');
+            const discountInput = document.getElementById('discountInput');
+            const alertBanner = document.getElementById('alertBanner');
+
+            const principalInput = document.getElementById('principal');
+            const buyPriceInput = document.getElementById('buyPrice');
+            const currentPriceInput = document.getElementById('currentPrice');
+            const currentPriceHint = document.getElementById('hintCurrentPrice');
+            const quantityInput = document.getElementById('quantity');
+            const rebaseRateInput = document.getElementById('rebaseRate');
+            const totalDaysInput = document.getElementById('totalDays');
+            const hoursPerCycleInput = document.getElementById('hoursPerCycle');
+            const exchangeRateInput = document.getElementById('exchangeRate');
+            const feePercentInput = document.getElementById('feePercent');
+
+            const displayPrincipal = document.getElementById('displayPrincipal');
+            const displayFinalPrincipal = document.getElementById('displayFinalPrincipal');
+            const displayInterest = document.getElementById('displayInterest');
+            const displayExtra = document.getElementById('displayExtra');
+            const displayInitQty = document.getElementById('displayInitQty');
+            const displayFinalQty = document.getElementById('displayFinalQty');
+            const displayQtyInterest = document.getElementById('displayQtyInterest');
+            const displayQtyExtra = document.getElementById('displayQtyExtra');
+            const displayFeeAmount = document.getElementById('displayFeeAmount');
+            const displayFeeAmountMin = document.getElementById('displayFeeAmountMin');
+            const displayTotalAfterFee = document.getElementById('displayTotalAfterFee');
+            const displayTotalMinPrice = document.getElementById('displayTotalMinPrice');
+            const displayCycle = document.getElementById('displayCycle');
+            const displayFeePercent = document.getElementById('displayFeePercent');
+            const displayChain = document.getElementById('displayChain');
+            const displayLockDays = document.getElementById('displayLockDays');
+            const displayExtraRate = document.getElementById('displayExtraRate');
+
+            const calcBtn = document.getElementById('calcBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const resultGrid = document.getElementById('resultGrid');
+            const placeholder = document.getElementById('placeholder');
+            const detailNote = document.getElementById('detailNote');
+            const chartWrapper = document.getElementById('chartWrapper');
+
+            let chartInstance = null;
+            const ctx = document.getElementById('growthChart').getContext('2d');
+
+            // =============================================
+            // 输入限制 - 使用 text 类型替代 number 解决 Mac 小数点问题
+            // =============================================
+            function restrictNumberInput(input) {
+                if (!input) return;
+
+                // 保存光标位置
+                let cursorPos = 0;
+
+                input.addEventListener('focus', function() {
+                    if (this.value === '0') {
+                        this.value = '';
+                    }
+                });
+
+                input.addEventListener('compositionstart', function() {
+                    this._isComposing = true;
+                });
+
+                input.addEventListener('compositionend', function(e) {
+                    this._isComposing = false;
+                    cleanInputValue(this);
+                });
+
+                input.addEventListener('input', function(e) {
+                    if (this._isComposing) return;
+                    // 保存当前光标位置
+                    cursorPos = this.selectionStart || 0;
+                    const oldValue = this.value;
+                    cleanInputValue(this);
+                    // 恢复光标位置
+                    if (this.value !== oldValue) {
+                        const newPos = Math.min(cursorPos, this.value.length);
+                        this.setSelectionRange(newPos, newPos);
+                    }
+                });
+
+                input.addEventListener('keydown', function(e) {
+                    const key = e.key;
+                    // 允许: Backspace, Delete, Tab, Escape, Enter, 方向键, 小数点
+                    const allowed = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                        'Home', 'End', '.', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
+                    ];
+                    if (allowed.includes(key)) {
+                        return;
+                    }
+                    e.preventDefault();
+                });
+
+                input.addEventListener('paste', function(e) {
+                    const paste = (e.clipboardData || window.clipboardData).getData('text');
+                    if (!/^[0-9.]*$/.test(paste)) {
+                        e.preventDefault();
+                    }
+                });
+
+                input.addEventListener('blur', function() {
+                    let val = this.value.trim();
+                    if (val === '') return;
+                    const num = parseFloat(val);
+                    if (isNaN(num) || num < 0) {
+                        this.value = '';
+                        this.placeholder = currentLang === 'zh' ? '请输入正数' : 'Enter positive number';
+                    } else if (num === 0) {
+                        this.value = '0';
+                    }
+                });
+
+                // 点击时保持光标位置
+                input.addEventListener('click', function() {
+                    // 不做特殊处理，让浏览器默认行为
+                });
+            }
+
+            function cleanInputValue(input) {
+                let val = input.value;
+                // 只保留数字和小数点
+                val = val.replace(/[^0-9.]/g, '');
+                // 确保只有一个小数点
+                const parts = val.split('.');
+                if (parts.length > 2) {
+                    val = parts[0] + '.' + parts.slice(1).join('');
+                }
+                // 如果以小数点开头，补0
+                if (val.startsWith('.')) {
+                    val = '0' + val;
+                }
+                // 如果以小数点结尾，允许
+                input.value = val;
+            }
+
+            // =============================================
+            // 链选择联动产品
+            // =============================================
+            function updateProducts() {
+                const chain = chainSelect.value;
+                productSelect.innerHTML = '';
+                productSelect.disabled = true;
+
+                if (!chain) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = currentLang === 'zh' ? '-- 请先选择区块链 --' : '-- Select Blockchain First --';
+                    productSelect.appendChild(opt);
+                    lockDaysInput.value = '';
+                    extraPercentInput.value = '';
+                    discountFieldGroup.classList.add('discount-hidden');
+                    return;
+                }
+
+                let products = [];
+                if (chain === 'polygon' || chain === 'anubis') {
+                    products = [...(productsByChain[chain] || []), ...(productsByChain['independent'] || [])];
+                }
+
+                if (products.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = currentLang === 'zh' ? '-- 该链暂无产品 --' : '-- No products for this chain --';
+                    productSelect.appendChild(opt);
+                    productSelect.disabled = true;
+                    return;
+                }
+
+                productSelect.disabled = false;
+                const isZh = currentLang === 'zh';
+                products.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.value;
+                    opt.textContent = isZh ? p.label : p.labelEn;
+                    productSelect.appendChild(opt);
+                });
+
+                productSelect.value = products[0].value;
+                applyProductPreset();
+            }
+
+            function applyProductPreset() {
+                const productKey = productSelect.value;
+                if (!productKey) {
+                    lockDaysInput.value = '';
+                    extraPercentInput.value = '';
+                    discountFieldGroup.classList.add('discount-hidden');
+                    displayChain.textContent = '--';
+                    displayLockDays.textContent = '--';
+                    displayExtraRate.textContent = '--';
+                    return;
+                }
+
+                const config = productConfigs[productKey];
+                if (!config) return;
+
+                lockDaysInput.value = config.lockDays;
+                extraPercentInput.value = config.extraPercent;
+                displayLockDays.textContent = config.lockDays;
+
+                if (config.chain) {
+                    displayChain.textContent = config.chain === 'polygon' ? 'Polygon' : 'Anubis';
+                } else {
+                    displayChain.textContent = currentLang === 'zh' ? '独立产品' : 'Independent';
+                }
+
+                if (config.showDiscount) {
+                    discountFieldGroup.classList.remove('discount-hidden');
+                } else {
+                    discountFieldGroup.classList.add('discount-hidden');
+                    discountInput.value = '';
+                }
+
+                if (config.hasExtra) {
+                    extraFieldGroup.classList.remove('extra-hidden');
+                    displayExtraRate.textContent = config.extraPercent.toFixed(2) + '%';
+                } else {
+                    extraFieldGroup.classList.add('extra-hidden');
+                    displayExtraRate.textContent = '0 (无)';
+                    extraPercentInput.value = '0';
+                }
+
+                if (config.defaultCurrentPrice !== null && config.defaultCurrentPrice !== undefined) {
+                    currentPriceInput.value = config.defaultCurrentPrice;
+                    const chainName = config.chain === 'polygon' ? 'Polygon' : 'Anubis';
+                    currentPriceHint.textContent = `${chainName}: $${config.defaultCurrentPrice}`;
+                }
+            }
+
+            function applyChainPrice() {
+                const chain = chainSelect.value;
+                if (chain && chainDefaultPrices[chain] !== undefined) {
+                    const price = chainDefaultPrices[chain];
+                    currentPriceInput.value = price;
+                    const chainName = chain === 'polygon' ? 'Polygon' : 'Anubis';
+                    currentPriceHint.textContent = `${chainName}: $${price}`;
+                }
+            }
+
+            chainSelect.addEventListener('change', function() {
+                applyChainPrice();
+                updateProducts();
+                alertBanner.classList.remove('show');
+                hideResults();
+                calculateQuantity();
+            });
+
+            productSelect.addEventListener('change', function() {
+                applyProductPreset();
+                alertBanner.classList.remove('show');
+                hideResults();
+                calculateQuantity();
+            });
+
+            // =============================================
+            // 计算初始币量（考虑折扣）
+            // =============================================
+            function calculateQuantity() {
+                const principal = parseFloat(principalInput.value);
+                let buyPrice = parseFloat(buyPriceInput.value);
+                const rate = parseFloat(exchangeRateInput.value);
+                const discount = parseFloat(discountInput.value) || 0;
+
+                // 如果有折扣，实际购买价 = 原价 × (1 - 折扣%)
+                if (discount > 0 && discount <= 100) {
+                    buyPrice = buyPrice * (1 - discount / 100);
+                }
+
+                if (!isNaN(principal) && principal > 0 && !isNaN(buyPrice) && buyPrice > 0 && !isNaN(rate) && rate > 0) {
+                    const qty = principal / (buyPrice * rate);
+                    quantityInput.value = qty.toFixed(8);
+                } else {
+                    quantityInput.value = '';
+                }
+            }
+
+            principalInput.addEventListener('input', calculateQuantity);
+            buyPriceInput.addEventListener('input', calculateQuantity);
+            exchangeRateInput.addEventListener('input', calculateQuantity);
+            discountInput.addEventListener('input', calculateQuantity);
+
+            // =============================================
+            // 显示/隐藏结果
+            // =============================================
+            function showResults() {
+                resultGrid.classList.add('show');
+                placeholder.style.display = 'none';
+                detailNote.classList.add('show');
+                chartWrapper.classList.add('show');
+            }
+
+            function hideResults() {
+                resultGrid.classList.remove('show');
+                placeholder.style.display = 'block';
+                detailNote.classList.remove('show');
+                chartWrapper.classList.remove('show');
+                if (chartInstance) {
+                    chartInstance.destroy();
+                    chartInstance = null;
+                }
+            }
+
+            // =============================================
+            // 格式化数字
+            // =============================================
+            function formatNumber(num, decimals) {
+                if (num === undefined || num === null || isNaN(num)) return '-';
+                if (!isFinite(num)) return '∞';
+                return num.toFixed(decimals);
+            }
+
+            // =============================================
+            // 核心计算
+            // =============================================
+            function calculateAndChart() {
+                const chain = chainSelect.value;
+                const product = productSelect.value;
+                if (!chain || !product) {
+                    alertBanner.textContent = currentLang === 'zh' ? '⚠️ 请先选择「区块链」和「产品类型」' :
+                        '⚠️ Please select "Blockchain" and "Product Type" first';
+                    alertBanner.classList.add('show');
+                    hideResults();
+                    return;
+                }
+
+                let principal = parseFloat(principalInput.value);
+                let buyPrice = parseFloat(buyPriceInput.value);
+                const currentPrice = parseFloat(currentPriceInput.value);
+                const quantity = parseFloat(quantityInput.value);
+                const rebaseRate = parseFloat(rebaseRateInput.value);
+                const totalDays = parseInt(totalDaysInput.value);
+                const lockDays = parseInt(lockDaysInput.value);
+                const hoursPerCycle = parseFloat(hoursPerCycleInput.value);
+                const extraPercent = parseFloat(extraPercentInput.value);
+                const exchangeRate = parseFloat(exchangeRateInput.value);
+                const feePercent = parseFloat(feePercentInput.value);
+                const discount = parseFloat(discountInput.value) || 0;
+
+                const config = productConfigs[product];
+
+                // 折扣影响购买价（增加初始币量）
+                if (config && config.showDiscount && discount > 0 && discount <= 100) {
+                    buyPrice = buyPrice * (1 - discount / 100);
+                }
+
+                const required = [principal, buyPrice, currentPrice, quantity, rebaseRate, totalDays, lockDays, hoursPerCycle,
+                    exchangeRate, feePercent
+                ];
+                if (required.some(v => isNaN(v) || v <= 0)) {
+                    alertBanner.textContent = currentLang === 'zh' ? '⚠️ 请填写所有必填参数（不能为空或负数）' :
+                        '⚠️ Please fill in all required parameters (cannot be empty or negative)';
+                    alertBanner.classList.add('show');
+                    hideResults();
+                    return;
+                }
+
+                alertBanner.classList.remove('show');
+
+                const initialPrincipal = principal;
+                const initialQuantity = quantity;
+                const ratePerCycle = rebaseRate / 100;
+
+                function calcOneCycle(startPrincipal, startQty, days) {
+                    const totalHours = days * 24;
+                    const cycles = Math.floor(totalHours / hoursPerCycle);
+                    let curQty = startQty;
+                    let interestQtyTotal = 0;
+
+                    for (let i = 0; i < cycles; i++) {
+                        const interestQty = curQty * ratePerCycle;
+                        interestQtyTotal += interestQty;
+                        curQty = curQty + interestQty;
+                    }
+
+                    const extraQty = startPrincipal / buyPrice * (extraPercent / 100);
+
+                    return {
+                        endQty: curQty + extraQty,
+                        interestQty: interestQtyTotal,
+                        extraQty: extraQty
+                    };
+                }
+
+                function simulateDaily() {
+                    const dailyAssets = [];
+                    const dailyLabels = [];
+                    let simPrincipal = principal;
+                    let simQty = quantity;
+                    let totalInterestQty = 0;
+                    let totalExtraQty = 0;
+
+                    dailyAssets.push(simPrincipal);
+                    dailyLabels.push('0');
+
+                    let remaining = totalDays;
+                    let dayCounter = 0;
+
+                    while (remaining > 0) {
+                        const cycleDays = Math.min(lockDays, remaining);
+                        const result = calcOneCycle(simPrincipal, simQty, cycleDays);
+
+                        totalInterestQty += result.interestQty;
+                        totalExtraQty += result.extraQty;
+
+                        const interestCNY = result.interestQty * currentPrice * exchangeRate;
+                        const extraCNY = result.extraQty * currentPrice * exchangeRate;
+                        simPrincipal = simPrincipal + interestCNY + extraCNY;
+                        simQty = result.endQty;
+
+                        dayCounter += cycleDays;
+                        dailyAssets.push(simQty * currentPrice * exchangeRate);
+                        dailyLabels.push(String(Math.min(dayCounter, totalDays)));
+
+                        remaining -= cycleDays;
+                    }
+
+                    while (dailyAssets.length < totalDays + 1) {
+                        const lastVal = dailyAssets[dailyAssets.length - 1] || principal;
+                        dailyAssets.push(lastVal);
+                        dailyLabels.push(String(dailyLabels.length));
+                    }
+                    if (dailyAssets.length > totalDays + 1) {
+                        dailyAssets.splice(totalDays + 1);
+                        dailyLabels.splice(totalDays + 1);
+                    }
+
+                    return {
+                        dailyAssets: dailyAssets,
+                        dailyLabels: dailyLabels,
+                        finalQty: simQty,
+                        totalInterestQty: totalInterestQty,
+                        totalExtraQty: totalExtraQty,
+                        finalPrincipal: simPrincipal
+                    };
+                }
+
+                const simResult = simulateDaily();
+                const dailyAssets = simResult.dailyAssets;
+                const dailyLabels = simResult.dailyLabels;
+                const finalQty = simResult.finalQty;
+                const totalInterestQty = simResult.totalInterestQty;
+                const totalExtraQty = simResult.totalExtraQty;
+
+                const totalInterestCNY = totalInterestQty * currentPrice * exchangeRate;
+                const totalExtraCNY = totalExtraQty * currentPrice * exchangeRate;
+                const finalPrincipal = simResult.finalPrincipal;
+
+                const finalAssetBeforeFee = finalQty * currentPrice * exchangeRate;
+                const finalAssetBeforeFee_Min = principal + totalInterestQty * 1 * exchangeRate + totalExtraQty * 1 *
+                    exchangeRate;
+
+                const feeRate = feePercent / 100;
+                const feeAmount = finalAssetBeforeFee * feeRate;
+                const finalAssetAfterFee = finalAssetBeforeFee - feeAmount;
+                const feeAmountMin = finalAssetBeforeFee_Min * feeRate;
+                const finalAssetAfterFee_Min = finalAssetBeforeFee_Min - feeAmountMin;
+
+                const hasExtra = config ? config.hasExtra : (extraPercent > 0);
+
+                displayPrincipal.textContent = formatNumber(initialPrincipal, 2) + ' ¥';
+                displayFinalPrincipal.textContent = formatNumber(finalAssetAfterFee, 2) + ' ¥';
+                displayInterest.textContent = formatNumber(totalInterestCNY, 2) + ' ¥';
+                if (hasExtra && totalExtraCNY > 0) {
+                    displayExtra.textContent = formatNumber(totalExtraCNY, 2) + ' ¥';
+                    displayExtra.className = 'value positive';
+                } else {
+                    displayExtra.textContent = '0 ¥ (无)';
+                    displayExtra.className = 'value zero';
+                }
+                displayInitQty.textContent = formatNumber(initialQuantity, 8);
+                displayFinalQty.textContent = formatNumber(finalQty, 8);
+                displayQtyInterest.textContent = formatNumber(totalInterestQty, 8);
+                if (hasExtra && totalExtraQty > 0) {
+                    displayQtyExtra.textContent = formatNumber(totalExtraQty, 8);
+                    displayQtyExtra.className = 'value small positive';
+                } else {
+                    displayQtyExtra.textContent = '0 (无)';
+                    displayQtyExtra.className = 'value small zero';
+                }
+
+                displayTotalAfterFee.textContent = formatNumber(finalAssetAfterFee, 2) + ' ¥';
+                displayTotalMinPrice.textContent = formatNumber(finalAssetAfterFee_Min, 2) + ' ¥';
+                displayFeeAmount.textContent = formatNumber(feeAmount, 2) + ' ¥';
+                displayFeeAmountMin.textContent = formatNumber(feeAmountMin, 2) + ' ¥';
+
+                displayCycle.textContent = hoursPerCycle;
+                displayFeePercent.textContent = feePercent.toFixed(2);
+
+                if (config) {
+                    displayLockDays.textContent = config.lockDays;
+                    if (config.hasExtra) {
+                        displayExtraRate.textContent = config.extraPercent.toFixed(2) + '%';
+                    } else {
+                        displayExtraRate.textContent = '0 (无)';
+                    }
+                }
+
+                // ===== 指数函数曲线图 =====
+                if (chartInstance) chartInstance.destroy();
+
+                const smoothData = [];
+                const smoothLabels = [];
+                const steps = Math.max(totalDays * 2, 100);
+                const a = dailyAssets[0] || principal;
+                const finalVal = dailyAssets[dailyAssets.length - 1] || principal;
+                let b = 0;
+                if (totalDays > 0 && a > 0 && finalVal > 0) {
+                    b = Math.log(finalVal / a) / totalDays;
+                }
+
+                for (let i = 0; i <= steps; i++) {
+                    const t = (i / steps) * totalDays;
+                    const y = a * Math.exp(b * t);
+                    smoothData.push(y);
+                    smoothLabels.push(t.toFixed(1));
+                }
+
+                const chartData = {
+                    labels: smoothLabels,
+                    datasets: [{
+                        label: currentLang === 'zh' ? '资产 (¥) · 指数增长' : 'Assets (¥) · Exponential Growth',
+                        data: smoothData,
+                        borderColor: '#1f7b9e',
+                        backgroundColor: 'rgba(31,123,158,0.08)',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: true,
+                    }, {
+                        label: currentLang === 'zh' ? '最终总收益 (扣费后)' : 'Final Return (After Fee)',
+                        data: smoothData.map((val, idx) => idx === smoothData.length - 1 ? finalAssetAfterFee :
+                            null),
+                        borderColor: '#d97706',
+                        backgroundColor: '#d97706',
+                        pointRadius: 10,
+                        pointStyle: 'circle',
+                        borderWidth: 3,
+                        showLine: false,
+                    }]
+                };
+
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { labels: { boxWidth: 12, padding: 12, font: { size: 11, weight: '500' } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (context.parsed.y !== null) {
+                                            label += ': ' + context.parsed.y.toFixed(2) + ' ¥';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#e6edf5' },
+                                ticks: { callback: v => v.toFixed(0) + ' ¥' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                title: { display: true, text: currentLang === 'zh' ? '天数' : 'Days',
+                                font: { size: 11 } }
+                            }
+                        },
+                        interaction: { intersect: false, mode: 'index' }
+                    }
+                });
+
+                showResults();
+
+                const extraDisplay = config && config.hasExtra ? config.extraPercent.toFixed(2) + '% (本金)' : '0 (无)';
+                const discountDisplay = (config && config.showDiscount && discount > 0) ? ` · 折扣: ${discount}%` : '';
+                const chainName = config ? (config.chain === 'polygon' ? 'Polygon' :
+                    config.chain === 'anubis' ? 'Anubis' :
+                    currentLang === 'zh' ? '独立产品' : 'Independent') : '--';
+                detailNote.innerHTML =
+                    `⚡ 链: <span id="displayChain">${chainName}</span> · 质押周期: <span id="displayLockDays">${lockDays}</span>天 · 额外收益: <span id="displayExtraRate">${extraDisplay}</span>${discountDisplay} · 爆块周期: 每 ${hoursPerCycle} 小时 · 手续费率 ${feePercent.toFixed(2)}% · 曲线为指数增长拟合，橙色点为最终扣费后总收益`;
+            }
+
+            // =============================================
+            // 重置
+            // =============================================
+            function resetAll() {
+                chainSelect.value = '';
+                productSelect.innerHTML = '';
+                productSelect.disabled = true;
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = currentLang === 'zh' ? '-- 请先选择区块链 --' : '-- Select Blockchain First --';
+                productSelect.appendChild(opt);
+
+                lockDaysInput.value = '';
+                extraPercentInput.value = '';
+                principalInput.value = '';
+                buyPriceInput.value = '';
+                currentPriceInput.value = '';
+                quantityInput.value = '';
+                rebaseRateInput.value = '';
+                totalDaysInput.value = '';
+                hoursPerCycleInput.value = '';
+                exchangeRateInput.value = '';
+                feePercentInput.value = '';
+                discountInput.value = '';
+
+                discountFieldGroup.classList.add('discount-hidden');
+                hideResults();
+                alertBanner.classList.remove('show');
+                if (chartInstance) {
+                    chartInstance.destroy();
+                    chartInstance = null;
+                }
+                displayChain.textContent = '--';
+                displayLockDays.textContent = '--';
+                displayExtraRate.textContent = '--';
+                currentPriceHint.textContent = currentLang === 'zh' ? '选择链后自动设定' : 'Auto-set after chain selection';
+            }
+
+            // =============================================
+            // 事件绑定
+            // =============================================
+            calcBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                calculateAndChart();
+            });
+
+            resetBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                resetAll();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                    e.preventDefault();
+                    calcBtn.click();
+                }
+            });
+
+            // =============================================
+            // 初始化
+            // =============================================
+            document.querySelectorAll('input[type="text"]').forEach(function(input) {
+                restrictNumberInput(input);
+                input.value = '';
+            });
+
+            hideResults();
+
+            const sysLang = detectLanguage();
+            applyLanguage(sysLang);
+
+            chainSelect.value = '';
+            updateProducts();
+
+            window.addEventListener('load', function() {
+                // 所有输入框保持为空
+            });
+        })();
+    </script>
+</body>
+</html>
